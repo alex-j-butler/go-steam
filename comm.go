@@ -370,7 +370,7 @@ func (r *RulesResponse) unmarshalBinary(data []byte) (err error) {
 		value := readString(buf)
 		r.Rules[name] = value
 
-		fmt.Println(fmt.Sprintf("%s: [%s]", name, []byte(name)))
+		fmt.Println(fmt.Sprintf("%s: [%v]", name, []byte(name)))
 	}
 	return nil
 }
