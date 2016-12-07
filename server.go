@@ -248,6 +248,43 @@ func (s *Server) PlayersInfo() (*PlayersInfoResponse, error) {
 	return &res, nil
 }
 
+// Rules retrieves rule information from the server.
+func (s *Server) Rules() (*RulesResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Send the challenge request
+	req, _ := rulesRequest{}.marshalBinary()
+	if err := s.usock.send(req); err != nil {
+		return nil, err
+	}
+	data, err := s.usock.receive()
+	if err != nil {
+		return nil, err
+	}
+	if isRulesChallengeResponse(data) {
+		// Parse the challenge response
+		var challengeResp rulesChallengeResponse
+		if err := challengeResp.unmarshalBinary(data); err != nil {
+			return nil, err
+		}
+		// Send a new request with the proper challenge number
+		req, _ := rulesRequest{Challenge: challengeResp.Challenge}.marshalBinary()
+		if err := s.usock.send(req); err != nil {
+			return nil, err
+		}
+		data, err = s.usock.receive()
+		if err != nil {
+			return nil, err
+		}
+	}
+	// Parse the return value
+	var resp RulesResponse
+	if err := resp.unmarshalBinary(data); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // Send RCON command to the server.
 func (s *Server) Send(cmd string) (string, error) {
 	s.mu.Lock()

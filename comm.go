@@ -12,6 +12,9 @@ const (
 	hPlayersInfoRequest           = 'U'
 	hPlayersInfoChallengeResponse = 'A'
 	hPlayersInfoResponse          = 'D'
+	hRulesRequest                 = 'V'
+	hRulesChallengeResponse       = 'A'
+	hRulesResponse                = 'E'
 )
 
 type ServerType int
@@ -307,6 +310,72 @@ func (r *PlayersInfoResponse) unmarshalBinary(data []byte) (err error) {
 		r.Players = append(r.Players, &p)
 	}
 	return nil
+}
+
+type rulesRequest struct {
+	Challenge int
+}
+
+func (r rulesRequest) marshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	writeRequestPrefix(buf)
+	writeByte(buf, hRulesRequest)
+	writeLong(buf, int32(r.Challenge))
+	return buf.Bytes(), nil
+}
+
+func isRulesChallengeResponse(b []byte) bool {
+	return b[0] == hRulesChallengeResponse
+}
+
+type rulesChallengeResponse struct {
+	Challenge int
+}
+
+func (r *rulesChallengeResponse) unmarshalBinary(data []byte) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+	buf := bytes.NewBuffer(data)
+	header := readByte(buf)
+	if header != hRulesChallengeResponse {
+		panic(errBadData)
+	}
+	r.Challenge = toInt(readLong(buf))
+	return nil
+}
+
+type RulesResponse struct {
+	Rules []*Rule
+}
+
+func (r *RulesResponse) unmarshalBinary(data []byte) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+	buf := bytes.NewBuffer(data)
+	header := readByte(buf)
+	if header != hRulesResponse {
+		panic(errBadData)
+	}
+	count := toInt(readShort(buf))
+	for i := 0; i < count; i++ {
+		// Read the chunk
+		var rule Rule
+		rule.Name = readString(buf)
+		rule.Value = readString(buf)
+		r.Rules = append(r.Rules, &rule)
+	}
+	return nil
+}
+
+type Rule struct {
+	Name  string
+	Value string
 }
 
 type Player struct {
