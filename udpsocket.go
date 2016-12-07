@@ -68,7 +68,7 @@ func (s *udpSocket) receiveSplitPacket(firstPacket []byte) ([]byte, error) {
 	var packetBuf *bytes.Buffer
 
 	first := true
-	countedPackets := 1
+	countedPackets := 0
 	for {
 		var packet []byte
 		if first {
