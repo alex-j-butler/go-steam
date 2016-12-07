@@ -1,6 +1,7 @@
 package steam
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -52,7 +53,69 @@ func (s *udpSocket) receive() ([]byte, error) {
 		return nil, err
 	}
 	if buf[0] == 0xFE {
-		return nil, errors.New("steam: cannot handle split packets")
+		// return nil, errors.New("steam: cannot handle split packets")
+		return s.receiveMultiByte(buf)
 	}
 	return buf[4:], nil
+}
+
+func (s *udpSocket) receiveMultiByte(firstPacket []byte) ([]byte, error) {
+	assembledPacketBuf := new(bytes.Buffer)
+
+	packetBuf := bytes.NewBuffer(firstPacket[4:])
+
+	id := toInt(readLong(packetBuf))
+	totalPackets := toInt(readByte(packetBuf))
+	toInt(readByte(packetBuf))
+	size := toInt(readShort(packetBuf))
+
+	if id&0xFF == 1 {
+		return nil, errors.New("steam: cannot handle compressed packets")
+	}
+
+	// Write the data of the first packet.
+	assembledPacketBuf.Write(readBytes(packetBuf, size))
+
+	countedPackets := 1
+	for {
+		packet, err := s.receivePacket()
+		if err != nil {
+			return nil, err
+		}
+		packetBuf = bytes.NewBuffer(packet)
+
+		// Skip header.
+		readLong(packetBuf)
+
+		// Read ID
+		if id != toInt(readLong(packetBuf)) {
+			return nil, errors.New("steam: response id invalid")
+		}
+
+		// Skip total packets.
+		readByte(packetBuf)
+
+		// Skip packet number.
+		readByte(packetBuf)
+
+		// Make sure packet is not compressed.
+		if id&0xFF == 1 {
+			return nil, errors.New("steam: cannot handle compressed packets")
+		}
+
+		// Read size
+		size = toInt(readShort(packetBuf))
+
+		// Write payload to assembled packet.
+		assembledPacketBuf.Write(readBytes(packetBuf, size))
+
+		// Increase the packet counter.
+		countedPackets++
+
+		if countedPackets >= totalPackets {
+			break
+		}
+	}
+
+	return assembledPacketBuf.Bytes(), nil
 }
