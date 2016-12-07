@@ -74,7 +74,9 @@ func (s *udpSocket) receiveMultiByte(firstPacket []byte) ([]byte, error) {
 	}
 
 	// Write the data of the first packet.
-	assembledPacketBuf.Write(readBytes(packetBuf, size))
+	packetBytes := make([]byte, size)
+	numBytes, _ := packetBuf.Read(packetBytes)
+	assembledPacketBuf.Write(packetBytes[:numBytes])
 
 	countedPackets := 1
 	for {
@@ -107,7 +109,9 @@ func (s *udpSocket) receiveMultiByte(firstPacket []byte) ([]byte, error) {
 		size = toInt(readShort(packetBuf))
 
 		// Write payload to assembled packet.
-		assembledPacketBuf.Write(readBytes(packetBuf, size))
+		packetBytes := make([]byte, size)
+		numBytes, _ := packetBuf.Read(packetBytes)
+		assembledPacketBuf.Write(packetBytes[:numBytes])
 
 		// Increase the packet counter.
 		countedPackets++
