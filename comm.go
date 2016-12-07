@@ -348,7 +348,7 @@ func (r *rulesChallengeResponse) unmarshalBinary(data []byte) (err error) {
 }
 
 type RulesResponse struct {
-	Rules []*Rule
+	Rules []Rule
 }
 
 func (r *RulesResponse) unmarshalBinary(data []byte) (err error) {
@@ -368,7 +368,7 @@ func (r *RulesResponse) unmarshalBinary(data []byte) (err error) {
 		var rule Rule
 		rule.Name = readString(buf)
 		rule.Value = readString(buf)
-		r.Rules = append(r.Rules, &rule)
+		r.Rules = append(r.Rules, rule)
 	}
 	return nil
 }
