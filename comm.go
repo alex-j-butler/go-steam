@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"strings"
 )
 
 const (
@@ -366,11 +367,9 @@ func (r *RulesResponse) unmarshalBinary(data []byte) (err error) {
 	r.Rules = make(map[string]string)
 	for i := 0; i < count; i++ {
 		// Read the chunk
-		name := readString(buf)
-		value := readString(buf)
+		name := strings.Trim(readString(buf), "\x00")
+		value := strings.Trim(readString(buf), "\x00")
 		r.Rules[name] = value
-
-		fmt.Println(fmt.Sprintf("%s: [%v]", name, []byte(name)))
 	}
 	return nil
 }
