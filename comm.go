@@ -348,7 +348,7 @@ func (r *rulesChallengeResponse) unmarshalBinary(data []byte) (err error) {
 }
 
 type RulesResponse struct {
-	Rules []Rule
+	Rules map[string]string
 }
 
 func (r *RulesResponse) unmarshalBinary(data []byte) (err error) {
@@ -363,19 +363,14 @@ func (r *RulesResponse) unmarshalBinary(data []byte) (err error) {
 		panic(errBadData)
 	}
 	count := toInt(readShort(buf))
+	r.Rules = make(map[string]string)
 	for i := 0; i < count; i++ {
 		// Read the chunk
-		var rule Rule
-		rule.Name = readString(buf)
-		rule.Value = readString(buf)
-		r.Rules = append(r.Rules, rule)
+		name := readString(buf)
+		value := readString(buf)
+		r.Rules[name] = value
 	}
 	return nil
-}
-
-type Rule struct {
-	Name  string
-	Value string
 }
 
 type Player struct {

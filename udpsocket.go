@@ -53,36 +53,32 @@ func (s *udpSocket) receive() ([]byte, error) {
 		return nil, err
 	}
 	if buf[0] == 0xFE {
-		// return nil, errors.New("steam: cannot handle split packets")
-		return s.receiveMultiByte(buf)
+		return s.receiveSplitPacket(buf)
 	}
 	return buf[4:], nil
 }
 
-func (s *udpSocket) receiveMultiByte(firstPacket []byte) ([]byte, error) {
+func (s *udpSocket) receiveSplitPacket(firstPacket []byte) ([]byte, error) {
 	assembledPacketBuf := new(bytes.Buffer)
 
-	packetBuf := bytes.NewBuffer(firstPacket[4:])
+	var id int
+	var totalPackets int
+	var size int
 
-	id := toInt(readLong(packetBuf))
-	totalPackets := toInt(readByte(packetBuf))
-	toInt(readByte(packetBuf))
-	size := toInt(readShort(packetBuf))
+	var packetBuf *bytes.Buffer
 
-	if id&0xFF == 1 {
-		return nil, errors.New("steam: cannot handle compressed packets")
-	}
-
-	// Write the data of the first packet.
-	packetBytes := make([]byte, size)
-	numBytes, _ := packetBuf.Read(packetBytes)
-	assembledPacketBuf.Write(packetBytes[:numBytes])
-
+	first := true
 	countedPackets := 1
 	for {
-		packet, err := s.receivePacket()
-		if err != nil {
-			return nil, err
+		var packet []byte
+		if first {
+			packet = firstPacket
+		} else {
+			var err error
+			packet, err = s.receivePacket()
+			if err != nil {
+				return nil, err
+			}
 		}
 		packetBuf = bytes.NewBuffer(packet)
 
@@ -90,20 +86,19 @@ func (s *udpSocket) receiveMultiByte(firstPacket []byte) ([]byte, error) {
 		readLong(packetBuf)
 
 		// Read ID
-		if id != toInt(readLong(packetBuf)) {
-			return nil, errors.New("steam: response id invalid")
+		if first {
+			id = toInt(readLong(packetBuf))
+		} else {
+			if id != toInt(readLong(packetBuf)) {
+				return nil, errors.New("steam: response id invalid")
+			}
 		}
 
 		// Skip total packets.
-		readByte(packetBuf)
+		totalPackets = toInt(readByte(packetBuf))
 
 		// Skip packet number.
 		readByte(packetBuf)
-
-		// Make sure packet is not compressed.
-		if id&0xFF == 1 {
-			return nil, errors.New("steam: cannot handle compressed packets")
-		}
 
 		// Read size
 		size = toInt(readShort(packetBuf))
@@ -115,6 +110,7 @@ func (s *udpSocket) receiveMultiByte(firstPacket []byte) ([]byte, error) {
 
 		// Increase the packet counter.
 		countedPackets++
+		first = false
 
 		if countedPackets >= totalPackets {
 			break
